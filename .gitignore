@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Intermediate Results
+*.gz
+*.pkl
+*.png
+*.pt
+*ubyte

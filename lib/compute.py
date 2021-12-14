@@ -1,8 +1,6 @@
 import os
 import time
-import copy
 import torch
-import multiprocessing
 import numpy as np
 
 class Compute:
@@ -31,8 +29,20 @@ class Compute:
 
         svd_loss = 0
         sl = -1
-        while svd_loss <= f_loss_target and sl + np.shape(b)[0] > 0:
-            c_svd = np.dot(a, np.dot(u[:, :sl] * s[:sl], vh[:sl,]))
+        # this logic is incorrect because 
+        #   1) f_loss_target shouldn't be a target
+        #   2) number of singular values is NOT np.shape(b)[0], it's len(s)
+        # while svd_loss <= f_loss_target and sl + np.shape(b)[0] > 0:
+        '''
+        while svd_loss <= f_loss_target and sl + len(s) >= 0:
+            # c_svd = np.dot(a, np.dot(u[:, :sl] * s[:sl], vh[:sl,])) # this is wrong; the U-subspace indexing is incorrect.
+            c_svd = np.dot(a, np.dot(u[:, :len(s)+sl] * s[:sl], vh[:sl,]))
+            svd_loss = self.check_accuracy(a, b, c_svd, False)
+            sl -= 1
+        return 100*(len(s)+sl) / len(s)
+        '''
+        while svd_loss <= f_loss_target and sl + len(s) >= 0:
+            c_svd = np.dot(a, np.dot(u[:, :len(s)+sl] * s[:sl], vh[:sl,]))
             svd_loss = self.check_accuracy(a, b, c_svd, False)
             sl -= 1
         return 100*(np.shape(b)[0]+sl) / np.shape(b)[0]
@@ -148,8 +158,9 @@ class Compute:
                     t4 = time.perf_counter()
 
                     exe_time += (t2-t1) + (t4-t3)
+                
                 f_loss = self.check_accuracy(a, b, face, False)
-                r_queue.put(["Sum", exe_time, f_loss])
+                r_queue.put(["Sum", exe_time, f_loss, face])
                 return
             
             msg = queue.get()

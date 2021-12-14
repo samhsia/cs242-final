@@ -1,6 +1,4 @@
 import os
-import copy
-import torch
 import numpy as np
 import multiprocessing
 np.random.seed(42)
@@ -35,10 +33,12 @@ if __name__ == "__main__":
 
     # Note: if you are modeling with new matrices, set reinitialize to True
     a_orig, a_conv, b_orig = initialize_data(DATA_POINTS, DIMENSION, LUT_BITS, QUANTIZE_FACE, approx, reinitialize=False)
-    
     # run a single experiment for MMM!
-    exp.sweep_approximation_pool(a_orig, a_conv, b_orig, STEP=int(DIMENSION/16), compute_method="blas") # compute_method either "outer" or "blas"
-    
+    # Note: adjust the 16 to accomodate dimension sizes
+    results = exp.sweep_approximation_pool(a_orig, a_conv, b_orig, STEP=int(DIMENSION/16), compute_method="blas") # compute_method either "outer" or "blas"
+    print(results['results'])
+    print("################################################################")
+    print(results['results_approx'])
     
     # use this for a sweep to generate a csv of data
     # warning - creates lots of processes and can take a while to run in incorrectly initialized!

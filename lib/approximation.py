@@ -1,9 +1,9 @@
 import os
 import sys
 import time
-import copy
 import numpy as np
 import multiprocessing
+
 from operator import itemgetter
 
 
@@ -23,10 +23,11 @@ class Approximation:
 
     def quantize_row(self, row):
         new_row = np.zeros(np.shape(row), dtype=int)
-        max_val = self.MAX_VAL**2  # needed to be squared because max of row is self.MAX_VAL which is multiplied by val which has a max of self.MAX_VAL
+        max_val = self.MAX_VAL**2 # needed to be squared because max of row is self.MAX_VAL which is multiplied by val which has a max of self.MAX_VAL
         
         row[np.where(row > max_val)] = max_val # clamp top 
-        row[np.where(row < -1*max_val)] = -1*max_val # clamp bottom
+        row[np.where(row < -max_val)] = -max_val # clamp bottom
+
         new_row += (((row + max_val) / (max_val * 2) * (2**self.QUANTIZED_TARGET)) - (2**self.QUANTIZED_TARGET)/2).astype(int)
         return new_row
     
@@ -58,13 +59,13 @@ class Approximation:
             if i >= 128:
                 val = r_queue.get()
                 T[val[0]] = val[1]
-                sys.stdout.write(f'\r\tPercent Completed: {i-128} / {len(threads)} - {int(100*(i-128)/len(threads))}%')
+                sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(i-128, len(threads), int(100*(i-128)/len(threads))))
                 sys.stdout.flush()
         
         for i in range(128):
             val = r_queue.get()
             T[val[0]] = val[1]
-            sys.stdout.write(f'\r\tPercent Completed: {len(threads) - 128 + i} / {len(threads)} - {int(100*(len(threads) - 128 + i)/len(threads))}%')
+            sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(len(threads) - 128 + i, len(threads), int(100*(len(threads) - 128 + i)/len(threads))))
             sys.stdout.flush()
         
         for t in threads:
@@ -79,9 +80,12 @@ class Approximation:
         self.QUANTIZE_FACE = QUANTIZE_FACE
         self.NUM_BITS = NUM_BITS
         interval = (self.MAX_VAL * 2) / (2**NUM_BITS)
+        # Note that vals is the list of possible (i.e., quantized) input data values
         vals = list(np.arange(-self.MAX_VAL, self.MAX_VAL, interval))
-        
+
+        # T is a dictionary of dictionaries (i.e., lookup tables)
         T = {}
+        # For each row in the original weight matrix, we have to create a lookup table for possible lookup values.
         for i, row in enumerate(W):
             if i not in T:
                 T[i] = {}
@@ -92,6 +96,8 @@ class Approximation:
                 if QUANTIZE_FACE == False:
                     T[i][j] += val * row
                 else:
+                    # Original matrix multiplication result would have been new_vals, 
+                    # given quantized inputs.
                     new_vals = val * row
                     T[i][j] = self.quantize_row(new_vals)
         self.lut = T
@@ -112,17 +118,24 @@ class Approximation:
 
         for i, t in enumerate(threads):
             t.start()
+            val = r_queue.get()
+            data[val[0]] = val[1]
+            sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(i+1, len(threads), int(100*(i+1)/len(threads))))
+            sys.stdout.flush()
+
+        '''
             if i >= 128:
                 val = r_queue.get()
                 data[val[0]] = val[1]
-                sys.stdout.write(f'\r\tPercent Completed: {i-128} / {len(threads)} - {int(100*(i-128)/len(threads))}%')
+                sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(i-128, len(threads), int(100*(i-128)/len(threads))))
                 sys.stdout.flush()
         
         for i in range(128):
             val = r_queue.get()
             data[val[0]] = val[1]
-            sys.stdout.write(f'\r\tPercent Completed: {i-128} / {len(threads)} - {int(100*(len(threads) - 128 + i)/len(threads))}%')
+            sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(i, len(threads), int(100*(len(threads) - 128 + i)/len(threads))))
             sys.stdout.flush()
+        '''
 
         for t in threads:
             t.join()
@@ -133,7 +146,8 @@ class Approximation:
     def get_bin_parallel_fast(self, row, row_data, r_queue):
         conv_data = np.zeros(len(row_data), dtype=int)
         for i, d_val in enumerate(row_data):
-            conv_data[i] = int((np.abs(self.vals - d_val)).argmin())
+            # Find the index (i.e., argmin) of the closest value for each data value.
+            conv_data[i] = int((np.abs(self.vals - d_val)).argmin()) 
         r_queue.put([row, conv_data])
         return
 
@@ -177,7 +191,6 @@ class Approximation:
     def cluster_inference_parallel(self, x, barrier, queue, lock, r_queue):
         if len(list(os.sched_getaffinity(os.getpid()))) > 1:
             os.sched_setaffinity(0, { list(os.sched_getaffinity(os.getpid()))[0] })
-            
         # parse input
         a = x[1]
         faces = x[2]

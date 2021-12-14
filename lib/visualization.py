@@ -54,7 +54,7 @@ class Visualization:
         ax1.set_xlabel(r"Matrix Approximation, %", fontsize=12)
         ax1.set_ylabel(r"Approximation Error, F-Loss", fontsize=12, color=color)
         ax1.plot(x_pos, f_loss_results, "o-", color=color)
-        ax1.tick_params(axis='y'), labelcolor=color)
+        ax1.tick_params(axis='y', labelcolor=color)
         ax1.set_title(r'Aproximation Error for $M=256$ and $N=64$', fontsize=12)
         
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis

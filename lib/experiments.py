@@ -1,7 +1,6 @@
 import os
 import sys
 import copy
-import time
 import numpy as np
 import multiprocessing
 
@@ -68,7 +67,7 @@ class Experiments:
         #####################################################################################
         # define constants
         TOTAL_FACES = np.shape(a_orig)[1]
-        ALL_FACES = np.arange(0, TOTAL_FACES+1, STEP)
+        ALL_FACES = np.arange(0, TOTAL_FACES+1, STEP) # Try to change range
 
         a = a_orig # used to be deepcopy but no longer needed
         b = b_orig # used to be deepcopy but no longer needed
@@ -81,6 +80,8 @@ class Experiments:
         svd_comparison = []
         percent_approximated = []
 
+        results = []
+
         # shared datastructure for processing in parallel
         lock = multiprocessing.Lock()           # only used for testing... may remove later
         barrier = multiprocessing.Barrier(3)    # align start of compute process, approx process, sum process
@@ -92,12 +93,13 @@ class Experiments:
 
         #####################################################################################
         # sweep the number of faces using a Pool
-        for n_faces in ALL_FACES:
-            sys.stdout.write(f'\rPercent Completed: {int(100*n_faces/TOTAL_FACES)}%')
+        for i, n_faces in enumerate(ALL_FACES):
+            sys.stdout.write('\r\tStarting Experiments')
+            sys.stdout.write('\r\tPercent Completed: {} / {} - {}%'.format(i+1, len(ALL_FACES), int(100*(i+1)/len(ALL_FACES))))
             sys.stdout.flush()
 
             x = self.create_pool_input(a, a_conv, b, n_faces, compute_method)
-
+    
             threads = []
             for x_args in x:
                 threads.append(self.single_approximation_parallel_process(x_args, barrier, queue, lock, r_queue))
@@ -116,9 +118,11 @@ class Experiments:
                     f_loss_results.append(data[2])
                     svd_comparison.append(self.compute.check_percent_svd(a, b, data[2]))
                     percent_approximated.append(int(100*n_faces/TOTAL_FACES))
+                    results.append(data[3])
             
             for t in threads:
                 t.join()
+            
 
         #####################################################################################
 
@@ -139,12 +143,13 @@ class Experiments:
                     "compute-only": exec_time_compute_sweep[0],
                     "approx-only": exec_time_approx_sweep[-1],
                     "hybrid-best-exe": best_performance(exec_time_approx_sweep, exec_time_compute_sweep, percent_approximated)[0],
-                    "hybrid-best-percent": best_performance(exec_time_approx_sweep, exec_time_compute_sweep, percent_approximated)[1]
+                    "hybrid-best-percent": best_performance(exec_time_approx_sweep, exec_time_compute_sweep, percent_approximated)[1],
+                    "results": results
                 }
 
-        self.v.visualize_sweep_approximation(data)
-        self.v.visualize_f_loss_vs_percent_svd(data)
-        #self.v.visualize_ai(data)
+        # self.v.visualize_sweep_approximation(data)
+        # self.v.visualize_f_loss_vs_percent_svd(data)
+        # self.v.visualize_ai(data)
     
         return data
 
