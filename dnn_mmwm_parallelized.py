@@ -25,7 +25,7 @@ dtype=np.float16
 
 # Other Hyperparameters
 BATCHSIZE = 64
-NUM_BATCHES = 30
+NUM_BATCHES = 156
 SEED=42
 
 if __name__ == "__main__":
@@ -108,4 +108,4 @@ if __name__ == "__main__":
 
     print("################################################################")
 
-    torch.save(final_results, 'final_results.pt')
+    torch.save(final_results, './results/final_results.pt')
